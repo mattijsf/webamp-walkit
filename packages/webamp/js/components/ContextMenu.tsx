@@ -92,6 +92,7 @@ interface ContextMenuProps {
   offsetLeft: number;
   top?: boolean;
   bottom?: boolean;
+  className?: string;
   listRef?: React.Ref<HTMLUListElement>;
   // TODO: Remove this. Just conditionally render in the parent.
   selected: boolean;
@@ -103,6 +104,7 @@ export default function ContextMenu({
   offsetLeft,
   top,
   bottom,
+  className,
   listRef,
   selected,
 }: ContextMenuProps) {
@@ -112,7 +114,10 @@ export default function ContextMenu({
   }
   return (
     <Portal top={offsetTop} left={offsetLeft} zIndex={zIndex}>
-      <ul ref={listRef} className={classnames("context-menu", { top, bottom })}>
+      <ul
+        ref={listRef}
+        className={classnames("context-menu", className, { top, bottom })}
+      >
         {children}
       </ul>
     </Portal>

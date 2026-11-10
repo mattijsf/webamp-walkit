@@ -46,13 +46,15 @@ export class WindowMirror {
 
   /**
    * `before`: where the windows were in the skin before this one, which docking it keeps.
-   * `kept`: the docking of windows the skin before moved aside (`keptDocking`), which they
-   * take up again here.
+   * `modern`: a modern skin, whose windows open at their own size as in Winamp, not at
+   * webamp's classic size steps. `kept`: the docking of windows the skin before moved aside
+   * (`keptDocking`), which they take up again here.
    */
   constructor(
     private rt: Runtime,
     private dispatch: Dispatch,
     private before: Map<string, Box> = new Map(),
+    private modern = false,
     kept: Map<string, Hang> = new Map()
   ) {
     this.hang = hangers(before, "main");
@@ -97,7 +99,10 @@ export class WindowMirror {
 
     for (const [key, container] of CONTAINER_OF_WINDOW) {
       const open = (gen[key]?.open ?? false) && !hidden(key);
-      const on = shown.has(key);
+      // Milkdrop is on while walkit shows the visualizer anywhere: its own window, or a
+      // skin's drawer that took it in
+      const on =
+        shown.has(key) || (key === "milkdrop" && this.rt.visRect() != null);
       this.sync(
         `open:${key}`,
         String(on),
@@ -194,7 +199,8 @@ export class WindowMirror {
           this.dispatch({ type: "TOGGLE_WINDOW_SHADE_MODE", windowId: key }),
         () => this.rt.setWindowLayout(w.id, g.shade ? "shade" : "normal")
       );
-      if (SIZED.includes(key) && !shaded) {
+      // webamp keeps its classic size while a modern skin sizes its own windows
+      if (SIZED.includes(key) && !shaded && !this.modern) {
         const scale = this.rt.windowScale(containerOf(key));
         const layoutRect = {
           ...w.rect,
@@ -255,14 +261,15 @@ export class WindowMirror {
   }
 
   /**
-   * The size of the part of `w` that docks once placed: webamp's size steps for the windows
-   * it sizes, the skin's own size otherwise.
+   * The size of the part of `w` that docks once placed: webamp's size steps for the classic
+   * windows it sizes, a modern skin's own size otherwise.
    */
   private newSize(key: WindowId, w: SkinWindow, size: [number, number]) {
     const m = this.margins(w);
-    const full = SIZED.includes(key)
-      ? { width: 275 + 25 * size[0], height: 116 + 29 * size[1] }
-      : { width: w.rect.width, height: w.rect.height };
+    const full =
+      SIZED.includes(key) && !this.modern
+        ? { width: 275 + 25 * size[0], height: 116 + 29 * size[1] }
+        : { width: w.rect.width, height: w.rect.height };
     return {
       width: full.width - m.left - m.right,
       height: full.height - m.top - m.bottom,

@@ -17,12 +17,25 @@ import { PlayerFeed, playerCommand } from "./player";
 import { WindowMirror, WINDOW_OF_CONTAINER } from "./windows";
 import { Box, toBox } from "./dock";
 
-export type MenuKind = "main" | "options" | "presets" | "sort" | "misc";
-// where a menu opens on the page: its top left corner
+export type MenuKind =
+  | "main"
+  | "options"
+  | "presets"
+  | "sort"
+  | "misc"
+  | "playlistAdd"
+  | "playlistRemove"
+  | "playlistSelect"
+  | "playlistMisc"
+  | "playlistList";
+// where a menu opens on the page: its top left corner, or with `above` its bottom left, or with
+// `alignRight` its right edge there instead of its left
 export type MenuPlace = {
   kind: MenuKind;
   x: number;
   y: number;
+  above?: boolean;
+  alignRight?: boolean;
 };
 type From = ActionFrom | null;
 export type Vis = {
@@ -38,6 +51,20 @@ const WHEEL_NOTCH = 100;
 const BASE_SKIN = new URL("../../assets/skins/base-2.91.wsz", import.meta.url);
 
 let walkit: Promise<Walkit> | null = null;
+let fonts: Promise<void> | null = null;
+
+// Modern skins lay their text out with the stand-in fonts the dev server serves, when it does.
+async function loadFonts(embed: Walkit) {
+  const names: string[] = await fetch("/walkit/fonts.json")
+    .then((r) => (r.ok ? r.json() : []))
+    .catch(() => []);
+  const files = new Map<string, Uint8Array>();
+  for (const name of names) {
+    const r = await fetch(`/walkit/fonts/${encodeURIComponent(name)}`);
+    if (r.ok) files.set(`fonts/${name}`, new Uint8Array(await r.arrayBuffer()));
+  }
+  await embed.addFonts(files);
+}
 
 /**
  * walkit's classic windows on the page: one canvas each where walkit places it, the pointer,
@@ -85,7 +112,7 @@ export class Desktop {
   ) {
     walkit ??= loadWalkit();
     const show = (s: SkinBytes) =>
-      s ? this.show(s.bytes) : this.show(BASE_SKIN);
+      s ? this.show(s.bytes, s.modern) : this.show(BASE_SKIN);
     show(getSkinBytes());
     this.unsubscribe = onSkinBytes(show);
     this.unsubscribeStore = store.subscribe(this.wake);
@@ -128,19 +155,23 @@ export class Desktop {
     return this.store.dispatch as Dispatch;
   }
 
-  private async show(source: Uint8Array | URL) {
+  private async show(source: Uint8Array | URL, modern = false) {
     const turn = ++this.showing;
     const embed = await walkit!;
     embed.setHandlers(this.handlers);
+    if (modern) await (fonts ??= loadFonts(embed));
     let skin: Skin;
     try {
       skin = await embed.openSkin(source, {
         name: "webamp",
-        // a classic skin's missing bitmaps come from the base skin, as in Winamp
-        base: BASE_SKIN.href,
+        // a classic skin's missing bitmaps come from the base skin, a modern skin's lists and
+        // frames from Winamp's wasabi base, as in Winamp
+        ...(modern
+          ? { wasabi: "/walkit/wasabi.zip" }
+          : { base: BASE_SKIN.href }),
       });
     } catch (e) {
-      // a broken archive
+      // a modern skin without the wasabi base to stand on, or a broken archive
       console.warn("walkit could not open the skin", e);
       return;
     }
@@ -165,6 +196,7 @@ export class Desktop {
       skin.rt,
       this.dispatch,
       this.lastLayout(),
+      modern,
       this.mirror?.keptDocking()
     );
     this.viewport = "";
@@ -191,7 +223,8 @@ export class Desktop {
     this.showVis(null);
   }
 
-  // where Milkdrop draws: the inside of walkit's visualizer window, just above the window
+  // where Milkdrop draws: the inside of walkit's visualizer window, or a modern skin's
+  // visualizer holder, just above the window it is in
   private showVis(rect: Omit<Vis, "z"> | null, windows: SkinWindow[] = []) {
     let vis: Vis | null = null;
     if (rect) {
@@ -218,6 +251,7 @@ export class Desktop {
     windowOpen: (kind: string) => {
       const state = this.store.getState();
       if (kind === "doublesize") return Selectors.getDoubled(state);
+      if (kind === "visrandom") return Selectors.getRandomizePresets(state);
       return null;
     },
     player: (cmd: string, arg: number) =>
@@ -426,16 +460,23 @@ export class Desktop {
   }
 
   // webamp closes its menus on the next click, so one opened by a press waits for it to pass;
-  // a menu opens under its button
-  private menuAt(kind: MenuKind, from: From) {
+  // a menu opens under its button, or above it as Winamp 5 opens a modern skin's playlist menus
+  private menuAt(
+    kind: MenuKind,
+    from: From,
+    above = false,
+    alignRight = false
+  ) {
     const r = this.root.getBoundingClientRect();
-    const [x, y, , h] = from?.rect ?? [0, 0, 0, 0];
+    const [x, y, w, h] = from?.rect ?? [0, 0, 0, 0];
     const open = () =>
       setTimeout(() =>
         this.openMenu({
           kind,
-          x: r.left + window.scrollX + x,
-          y: r.top + window.scrollY + y + h,
+          x: r.left + window.scrollX + x + (alignRight ? w : 0),
+          y: r.top + window.scrollY + y + (above ? 0 : h),
+          above,
+          alignRight,
         })
       );
     if (this.press.down)
@@ -462,6 +503,21 @@ export class Desktop {
         return param === "avs"
           ? dispatch(Actions.toggleWindow("milkdrop"))
           : undefined;
+      // the visualizer's preset buttons (Winamp Modern's Prev, Next and Random)
+      case "VIS_PREV":
+        return dispatch(Actions.selectPreviousPreset());
+      case "VIS_NEXT":
+        return dispatch(Actions.selectNextPreset());
+      case "VIS_RANDOM":
+        return (param === "1") !== Selectors.getRandomizePresets(state)
+          ? dispatch(Actions.toggleRandomizePresets())
+          : undefined;
+      // a skin showing the visualizer's own window again (Winamp Modern's Detach)
+      case "SHOW":
+        if (param !== "avs") return;
+        if (!state.windows.genWindows.milkdrop?.open)
+          return dispatch(Actions.toggleWindow("milkdrop"));
+        return this.withSkin((rt) => rt.openWindow("avs"));
       case "ABOUT":
         return window.open("https://webamp.org/about", "_blank");
       case "PLAYLIST_SELECT":
@@ -472,6 +528,16 @@ export class Desktop {
         );
       case "PLAYLIST":
         return this.playlistPick(param, count, from);
+      case "PE_ADD":
+        return this.menuAt("playlistAdd", from, true);
+      case "PE_REM":
+        return this.menuAt("playlistRemove", from, true);
+      case "PE_SEL":
+        return this.menuAt("playlistSelect", from, true);
+      case "PE_MISC":
+        return this.menuAt("playlistMisc", from, true);
+      case "PE_LIST":
+        return this.menuAt("playlistList", from, true, true);
     }
   }
 

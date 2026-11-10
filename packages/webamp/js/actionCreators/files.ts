@@ -53,6 +53,7 @@ export function addTracksFromReferences(
 }
 
 const SKIN_FILENAME_MATCHER = new RegExp("(wsz|zip)$", "i");
+const MODERN_SKIN_MATCHER = new RegExp("wal$", "i");
 const EQF_FILENAME_MATCHER = new RegExp("eqf$", "i");
 export function loadFilesFromReferences(
   fileReferences: FileList,
@@ -67,6 +68,12 @@ export function loadFilesFromReferences(
       if (SKIN_FILENAME_MATCHER.test(fileReference.name)) {
         dispatch(setSkinFromBlob(fileReference));
         return;
+      } else if (
+        walkitEnabled() &&
+        MODERN_SKIN_MATCHER.test(fileReference.name)
+      ) {
+        dispatch(setSkinFromBlob(fileReference, true));
+        return;
       } else if (EQF_FILENAME_MATCHER.test(fileReference.name)) {
         dispatch(setEqFromFileReference(fileReference));
         return;
@@ -76,7 +83,10 @@ export function loadFilesFromReferences(
   };
 }
 
-export function setSkinFromBlob(blob: Blob | Promise<Blob>): Thunk {
+export function setSkinFromBlob(
+  blob: Blob | Promise<Blob>,
+  modern = false
+): Thunk {
   return async (dispatch, getState, { requireJSZip }) => {
     if (!requireJSZip) {
       alert("Webamp has not been configured to support custom skins.");
@@ -86,7 +96,7 @@ export function setSkinFromBlob(blob: Blob | Promise<Blob>): Thunk {
     if (walkitEnabled()) {
       // walkit reads the archive itself; webamp's sprites would go unused
       const bytes = new Uint8Array(await (await blob).arrayBuffer());
-      setSkinBytes({ bytes });
+      setSkinBytes({ bytes, modern });
       dispatch({ type: "LOADED" });
       return;
     }
@@ -101,7 +111,10 @@ export function setSkinFromBlob(blob: Blob | Promise<Blob>): Thunk {
     }
     try {
       const resolved = await blob;
-      setSkinBytes({ bytes: new Uint8Array(await resolved.arrayBuffer()) });
+      setSkinBytes({
+        bytes: new Uint8Array(await resolved.arrayBuffer()),
+        modern: false,
+      });
       const skinData = await skinParser(resolved, JSZip);
       dispatch({
         type: "SET_SKIN_DATA",
@@ -168,7 +181,11 @@ export function openMediaFileDialog(): Thunk {
 }
 
 export function openSkinFileDialog() {
-  return _openFileDialog(".zip, .wsz", "SKIN");
+  // walkit shows modern skins too
+  return _openFileDialog(
+    walkitEnabled() ? ".zip, .wsz, .wal" : ".zip, .wsz",
+    "SKIN"
+  );
 }
 
 export function fetchMediaDuration(url: string, id: number): Thunk {

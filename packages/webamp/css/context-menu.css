@@ -87,6 +87,16 @@
   display: block;
 }
 
+#webamp-context-menu .context-menu.above {
+  top: auto;
+  bottom: 0;
+}
+
+#webamp-context-menu .context-menu.end {
+  left: auto;
+  right: 0;
+}
+
 #webamp-context-menu .context-menu ul.flip {
   left: auto;
   right: 100%;

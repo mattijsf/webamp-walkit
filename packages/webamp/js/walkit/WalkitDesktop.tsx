@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useStore } from "react-redux";
+import classnames from "classnames";
 import {
   MilkdropView,
   useMilkdropCycling,
@@ -15,6 +16,13 @@ import { SortMenu } from "../components/PlaylistWindow/SortContextMenu";
 import { MiscOptionsMenu } from "../components/PlaylistWindow/MiscOptionsContextMenu";
 import { AppState, FilePicker } from "../types";
 import { Desktop, MenuKind, MenuPlace, Vis } from "./desktop";
+import {
+  PlaylistAddMenu,
+  PlaylistListMenu,
+  PlaylistMiscMenu,
+  PlaylistRemoveMenu,
+  PlaylistSelectMenu,
+} from "./PlaylistMenus";
 
 interface Props {
   analyser: AnalyserNode;
@@ -49,6 +57,16 @@ function MenuItems({
       return <SortMenu />;
     case "misc":
       return <MiscOptionsMenu />;
+    case "playlistAdd":
+      return <PlaylistAddMenu />;
+    case "playlistRemove":
+      return <PlaylistRemoveMenu />;
+    case "playlistSelect":
+      return <PlaylistSelectMenu />;
+    case "playlistMisc":
+      return <PlaylistMiscMenu />;
+    case "playlistList":
+      return <PlaylistListMenu />;
   }
 }
 
@@ -210,6 +228,10 @@ export default function WalkitDesktop({ analyser, filePickers }: Props) {
         offsetTop={menu?.y ?? 0}
         offsetLeft={menu?.x ?? 0}
         listRef={menuList}
+        className={classnames({
+          above: menu?.above,
+          end: menu?.alignRight,
+        })}
       >
         {menu && <MenuItems kind={menu.kind} filePickers={filePickers} />}
       </ContextMenu>

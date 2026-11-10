@@ -1,7 +1,7 @@
-// The skin webamp last loaded, kept as bytes for walkit, which reads the archive itself; null
-// for the base skin.
+// The skin webamp last loaded, kept as bytes for walkit, which reads the archive itself: a
+// classic .wsz, or a modern .wal only walkit can show; null for the base skin.
 
-export type SkinBytes = { bytes: Uint8Array } | null;
+export type SkinBytes = { bytes: Uint8Array; modern: boolean } | null;
 type Listener = (skin: SkinBytes) => void;
 
 let latest: SkinBytes = null;
