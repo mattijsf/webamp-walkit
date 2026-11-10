@@ -1,5 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useStore } from "react-redux";
+import {
+  MilkdropView,
+  useMilkdropCycling,
+  useMilkdropKeys,
+} from "../components/MilkdropWindow";
+import * as Selectors from "../selectors";
+import { useTypedSelector } from "../hooks";
 import ContextMenu from "../components/ContextMenu";
 import MainContextMenu from "../components/MainWindow/MainContextMenu";
 import OptionsContextMenu from "../components/OptionsContextMenu";
@@ -7,11 +14,21 @@ import { PresetsMenu } from "../components/EqualizerWindow/PresetsContextMenu";
 import { SortMenu } from "../components/PlaylistWindow/SortContextMenu";
 import { MiscOptionsMenu } from "../components/PlaylistWindow/MiscOptionsContextMenu";
 import { AppState, FilePicker } from "../types";
-import { Desktop, MenuKind, MenuPlace } from "./desktop";
+import { Desktop, MenuKind, MenuPlace, Vis } from "./desktop";
 
 interface Props {
   analyser: AnalyserNode;
   filePickers: FilePicker[];
+}
+
+type Size = { width: number; height: number };
+
+// where Milkdrop shows follows its window on every move: set straight on the element, so a
+// drag re-renders nothing
+function place(el: HTMLElement | null, vis: Vis | null) {
+  if (!el || !vis) return;
+  el.style.transform = `translate(${vis.left}px, ${vis.top}px)`;
+  el.style.zIndex = String(vis.z);
 }
 
 function MenuItems({
@@ -75,15 +92,72 @@ function fitSubmenu(e: MouseEvent) {
   if (hidden) sub.style.display = "";
 }
 
+function HostedMilkdrop({
+  analyser,
+  size,
+  box,
+}: {
+  analyser: AnalyserNode;
+  size: Size;
+  box: (el: HTMLDivElement | null) => void;
+}) {
+  const handleKeyDown = useMilkdropKeys();
+  useMilkdropCycling();
+  return (
+    <div
+      ref={box}
+      tabIndex={-1}
+      onKeyDown={(e) => handleKeyDown(e.nativeEvent)}
+      style={{
+        position: "absolute",
+        left: 0,
+        top: 0,
+        width: size.width,
+        height: size.height,
+      }}
+    >
+      <MilkdropView
+        analyser={analyser}
+        width={size.width}
+        height={size.height}
+      />
+    </div>
+  );
+}
+
 export default function WalkitDesktop({ analyser, filePickers }: Props) {
   const store = useStore<AppState>();
   const root = useRef<HTMLDivElement>(null);
   const [menu, setMenu] = useState<MenuPlace | null>(null);
   const menuList = useRef<HTMLUListElement>(null);
+  const [visSize, setVisSize] = useState<Size | null>(null);
+  const vis = useRef<Vis | null>(null);
+  const visBox = useRef<HTMLDivElement | null>(null);
+  const box = useCallback((el: HTMLDivElement | null) => {
+    visBox.current = el;
+    place(el, vis.current);
+  }, []);
+  const milkdrop = useTypedSelector(Selectors.getMilkdropEnabled);
+  const desktopMode = useTypedSelector(Selectors.getMilkdropDesktopEnabled);
 
   useEffect(() => {
     const openMenu = (next: MenuPlace) => setMenu(next);
-    const desktop = new Desktop(root.current!, store, analyser, openMenu);
+    const showVis = (next: Vis | null) => {
+      vis.current = next;
+      place(visBox.current, next);
+      setVisSize((size) => {
+        if (next == null) return null;
+        const same = size?.width === next.width && size.height === next.height;
+        return same ? size : { width: next.width, height: next.height };
+      });
+    };
+    const desktop = new Desktop(
+      root.current!,
+      store,
+      analyser,
+      openMenu,
+      showVis
+    );
     return () => desktop.dispose();
   }, [store, analyser]);
 
@@ -127,6 +201,9 @@ export default function WalkitDesktop({ analyser, filePickers }: Props) {
     <>
       <div style={{ position: "absolute", left: 0, top: 0 }}>
         <div ref={root} />
+        {visSize && milkdrop && !desktopMode && (
+          <HostedMilkdrop analyser={analyser} size={visSize} box={box} />
+        )}
       </div>
       <ContextMenu
         selected={menu != null}

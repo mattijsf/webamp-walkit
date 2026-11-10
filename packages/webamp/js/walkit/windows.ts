@@ -9,18 +9,20 @@ export const WINDOW_OF_CONTAINER: { [container: string]: WindowId } = {
   main: "main",
   equalizer: "equalizer",
   pledit: "playlist",
+  avs: "milkdrop",
 };
 
 const CONTAINER_OF_WINDOW: [WindowId, string][] = [
   ["equalizer", "equalizer"],
   ["playlist", "pledit"],
+  ["milkdrop", "avs"],
 ];
 
 // Winamp doubles these, and only these, in double size
 const DOUBLED = ["main", "equalizer"];
 
 // the windows webamp sizes in steps of 25 x 29 beyond 275 x 116
-const SIZED: WindowId[] = ["playlist"];
+const SIZED: WindowId[] = ["playlist", "milkdrop"];
 const steps = (r: Rect): [number, number] => [
   Math.max(0, Math.round((r.width - 275) / 25)),
   Math.max(0, Math.round((r.height - 116) / 29)),

@@ -25,6 +25,13 @@ export type MenuPlace = {
   y: number;
 };
 type From = ActionFrom | null;
+export type Vis = {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  z: number;
+};
 
 // a mouse wheel's notch, in pixels of delta (three lines); a trackpad's add up to notches
 const WHEEL_NOTCH = 100;
@@ -65,6 +72,7 @@ export class Desktop {
   private wheelLeft = 0;
   private painted = 0;
   private input = false;
+  private vis = "";
   private unsubscribe: () => void;
   private unsubscribeStore: () => void;
 
@@ -72,7 +80,8 @@ export class Desktop {
     private root: HTMLElement,
     private store: Store<AppState>,
     private analyser: AnalyserNode,
-    private openMenu: (menu: MenuPlace) => void
+    private openMenu: (menu: MenuPlace) => void,
+    private onVis: (vis: Vis | null) => void
   ) {
     walkit ??= loadWalkit();
     const show = (s: SkinBytes) =>
@@ -148,6 +157,7 @@ export class Desktop {
     this.skins++;
     // webamp is Winamp 2.91
     skin.rt.setClassicStyle("2.91");
+    skin.rt.setWindowTitle("avs", "Milkdrop");
     this.wake();
     this.feed?.dispose();
     this.feed = new PlayerFeed(skin.rt, this.analyser);
@@ -178,6 +188,26 @@ export class Desktop {
     this.skin = null;
     this.canvases.forEach((c) => c.remove());
     this.canvases.clear();
+    this.showVis(null);
+  }
+
+  // where Milkdrop draws: the inside of walkit's visualizer window, just above the window
+  private showVis(rect: Omit<Vis, "z"> | null, windows: SkinWindow[] = []) {
+    let vis: Vis | null = null;
+    if (rect) {
+      const z = windows.findIndex(
+        (w) =>
+          rect.left >= w.rect.left &&
+          rect.top >= w.rect.top &&
+          rect.left + rect.width <= w.rect.left + w.rect.width &&
+          rect.top + rect.height <= w.rect.top + w.rect.height
+      );
+      vis = { ...rect, z: 2 * (z + 1) + 1 };
+    }
+    const key = JSON.stringify(vis);
+    if (key === this.vis) return;
+    this.vis = key;
+    this.onVis(vis);
   }
 
   private handlers: Handlers = {
@@ -249,6 +279,7 @@ export class Desktop {
     }
     if (changed) {
       this.paint(skin, windows, moved);
+      if (moved) this.showVis(skin.rt.visRect(), windows);
       if (this.painted !== this.skins) {
         this.painted = this.skins;
         this.root.dataset.skin = String(this.skins);

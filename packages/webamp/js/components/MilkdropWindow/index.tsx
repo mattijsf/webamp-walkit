@@ -88,22 +88,12 @@ function useKeyHandler() {
   );
 }
 
-function Milkdrop({ analyser }: Props) {
-  const desktop = useTypedSelector(Selectors.getMilkdropDesktopEnabled);
-  const fullscreen = useTypedSelector(Selectors.getMilkdropFullscreenEnabled);
-  const overlay = useTypedSelector(Selectors.getPresetOverlayOpen);
+export function useMilkdropCycling() {
   const presetsAreCycling = useTypedSelector(Selectors.getPresetsAreCycling);
   const currentPresetIndex = useTypedSelector(Selectors.getCurrentPresetIndex);
   const mediaIsPlaying = useTypedSelector(Selectors.getMediaIsPlaying);
-
-  const toggleFullscreen = useActionCreator(Actions.toggleMilkdropFullscreen);
   const selectNextPreset = useActionCreator(Actions.selectNextPreset);
-  const handlePresetDrop = useActionCreator(Actions.handlePresetDrop);
-  const setFullscreen = useActionCreator(Actions.setMilkdropFullscreen);
 
-  const handleKeyDown = useKeyHandler();
-
-  // Cycle presets
   useEffect(() => {
     if (!presetsAreCycling || !mediaIsPlaying) {
       return;
@@ -114,15 +104,51 @@ function Milkdrop({ analyser }: Props) {
     );
     return () => clearInterval(intervalId);
   }, [presetsAreCycling, currentPresetIndex, mediaIsPlaying, selectNextPreset]);
+}
 
+interface ViewProps extends Props {
+  width: number;
+  height: number;
+}
+
+export function MilkdropView({ analyser, width, height }: ViewProps) {
+  const fullscreen = useTypedSelector(Selectors.getMilkdropFullscreenEnabled);
+  const overlay = useTypedSelector(Selectors.getPresetOverlayOpen);
+  const toggleFullscreen = useActionCreator(Actions.toggleMilkdropFullscreen);
+  const handlePresetDrop = useActionCreator(Actions.handlePresetDrop);
+  const setFullscreen = useActionCreator(Actions.setMilkdropFullscreen);
   const screenSize = useScreenSize();
-  const windowSize = useWindowSize();
 
   const toggleFullScreenIfEnabled = useCallback(() => {
     if (document.fullscreenEnabled) {
       toggleFullscreen();
     }
   }, [toggleFullscreen]);
+
+  const size = fullscreen ? screenSize : { width, height };
+  return (
+    <MilkdropContextMenu>
+      <Background>
+        <DropTarget windowId={WINDOWS.MILKDROP} handleDrop={handlePresetDrop}>
+          {overlay && <PresetOverlay {...size} />}
+          <Fullscreen enabled={fullscreen} onChange={setFullscreen}>
+            <div onDoubleClick={toggleFullScreenIfEnabled}>
+              <Visualizer {...size} analyser={analyser} />
+            </div>
+          </Fullscreen>
+        </DropTarget>
+      </Background>
+    </MilkdropContextMenu>
+  );
+}
+
+export { useKeyHandler as useMilkdropKeys };
+
+function Milkdrop({ analyser }: Props) {
+  const desktop = useTypedSelector(Selectors.getMilkdropDesktopEnabled);
+  const handleKeyDown = useKeyHandler();
+  const windowSize = useWindowSize();
+  useMilkdropCycling();
 
   if (desktop) {
     return (
@@ -141,26 +167,9 @@ function Milkdrop({ analyser }: Props) {
       windowId={WINDOWS.MILKDROP}
       onKeyDown={handleKeyDown}
     >
-      {(genWindowSize: { width: number; height: number }) => {
-        const size = fullscreen ? screenSize : genWindowSize;
-        return (
-          <MilkdropContextMenu>
-            <Background>
-              <DropTarget
-                windowId={WINDOWS.MILKDROP}
-                handleDrop={handlePresetDrop}
-              >
-                {overlay && <PresetOverlay {...size} />}
-                <Fullscreen enabled={fullscreen} onChange={setFullscreen}>
-                  <div onDoubleClick={toggleFullScreenIfEnabled}>
-                    <Visualizer {...size} analyser={analyser} />
-                  </div>
-                </Fullscreen>
-              </DropTarget>
-            </Background>
-          </MilkdropContextMenu>
-        );
-      }}
+      {(genWindowSize: { width: number; height: number }) => (
+        <MilkdropView analyser={analyser} {...genWindowSize} />
+      )}
     </GenWindow>
   );
 }

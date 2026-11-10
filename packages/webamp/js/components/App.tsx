@@ -48,6 +48,7 @@ export default function App({
   const closed = useTypedSelector(Selectors.getClosed);
   const genWindowsInfo = useTypedSelector(Selectors.getGenWindows);
   const zIndex = useTypedSelector(Selectors.getZIndex);
+  const milkdropDesktop = useTypedSelector(Selectors.getMilkdropDesktopEnabled);
 
   const browserWindowSizeChanged = useActionCreator(
     Actions.browserWindowSizeChanged
@@ -116,8 +117,7 @@ export default function App({
       if (!w.open) {
         return null;
       }
-      // walkit draws every window but Milkdrop's
-      if (walkit && id !== WINDOWS.MILKDROP) {
+      if (walkit && !(id === WINDOWS.MILKDROP && milkdropDesktop)) {
         return null;
       }
       switch (id) {
@@ -138,7 +138,7 @@ export default function App({
           throw new Error(`Tried to render an unknown window: ${id}`);
       }
     });
-  }, [media, filePickers, genWindowsInfo]);
+  }, [media, filePickers, genWindowsInfo, milkdropDesktop]);
 
   const handleBlur = (e: React.FocusEvent<HTMLElement>) => {
     if (!e.currentTarget.contains(e.relatedTarget as Element)) {
