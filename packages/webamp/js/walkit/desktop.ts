@@ -15,7 +15,7 @@ import {
 import { getSkinBytes, onSkinBytes, SkinBytes } from "./skinBytes";
 import { PlayerFeed, playerCommand } from "./player";
 import { WindowMirror, WINDOW_OF_CONTAINER } from "./windows";
-import { Box, toBox } from "./dock";
+import { Box, Hang, toBox } from "./dock";
 import { modernFiles } from "./modernFiles";
 
 export type MenuKind =
@@ -82,6 +82,13 @@ export class Desktop {
   private layout = "";
   private skins = 0;
   private showing = 0;
+  private modern = false;
+  // where the windows were in the last classic skin, which a classic skin after a modern one
+  // comes back to, as Winamp keeps the classic windows' places apart from a modern skin's
+  private classic: {
+    layout: Map<string, Box>;
+    kept: Map<string, Hang>;
+  } | null = null;
   // the mirrored windows of the skin shown, where they are
   private shown = new Map<string, Box>();
   private wheelLeft = 0;
@@ -167,6 +174,14 @@ export class Desktop {
       skin.free();
       return;
     }
+    let before = this.lastLayout();
+    let kept = this.mirror?.keptDocking();
+    if (this.skin && !this.modern)
+      this.classic = { layout: before, kept: kept! };
+    if (!modern && this.modern && this.classic) {
+      ({ layout: before, kept } = this.classic);
+    }
+    this.modern = modern;
     // the canvases stay: the new skin paints over them in its first frame
     this.skin?.free();
     this.skin = skin;
@@ -182,9 +197,9 @@ export class Desktop {
     this.mirror = new WindowMirror(
       skin.rt,
       this.dispatch,
-      this.lastLayout(),
+      before,
       modern,
-      this.mirror?.keptDocking()
+      kept
     );
     this.viewport = "";
   }
