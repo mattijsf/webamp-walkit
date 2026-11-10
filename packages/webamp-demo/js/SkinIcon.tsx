@@ -6,6 +6,9 @@ import { log } from "./logger";
 
 const iconUrl = iconSmall;
 
+const isModern = (url: string) =>
+  /\.wal$/i.test(new URL(url, location.href).pathname);
+
 interface Props {
   webamp: WebampLazy;
   skin: { url: string; name: string };
@@ -17,7 +20,11 @@ const SkinIcon = ({ webamp, skin }: Props) => {
     webamp.setSkinFromUrl(skin.url);
   }
   return (
-    <DesktopIcon iconUrl={iconUrl} name={`${skin.name}.wsz`} onOpen={onOpen} />
+    <DesktopIcon
+      iconUrl={iconUrl}
+      name={`${skin.name}.${isModern(skin.url) ? "wal" : "wsz"}`}
+      onOpen={onOpen}
+    />
   );
 };
 

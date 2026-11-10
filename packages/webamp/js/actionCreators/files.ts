@@ -144,7 +144,11 @@ export function setSkinFromUrl(url: string): Thunk {
       if (!response.ok) {
         throw new Error(response.statusText);
       }
-      dispatch(setSkinFromBlob(response.blob()));
+      // a .wal is a modern skin, which only walkit shows
+      const modern =
+        walkitEnabled() &&
+        /\.wal$/i.test(new URL(url, window.location.href).pathname);
+      dispatch(setSkinFromBlob(response.blob(), modern));
     } catch (e) {
       console.error(e);
       dispatch({ type: "LOADED" });
