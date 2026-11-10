@@ -53,14 +53,18 @@ const BASE_SKIN = new URL("../../assets/skins/base-2.91.wsz", import.meta.url);
 let walkit: Promise<Walkit> | null = null;
 let fonts: Promise<void> | null = null;
 
-// Modern skins lay their text out with the stand-in fonts the dev server serves, when it does.
+// What modern skins need besides themselves, next to the page when it has them: Winamp's
+// wasabi base and the stand-in fonts their text is laid out with. Relative, so the page works
+// under any path.
+const WASABI = "walkit/wasabi.zip";
+
 async function loadFonts(embed: Walkit) {
-  const names: string[] = await fetch("/walkit/fonts.json")
+  const names: string[] = await fetch("walkit/fonts.json")
     .then((r) => (r.ok ? r.json() : []))
     .catch(() => []);
   const files = new Map<string, Uint8Array>();
   for (const name of names) {
-    const r = await fetch(`/walkit/fonts/${encodeURIComponent(name)}`);
+    const r = await fetch(`walkit/fonts/${encodeURIComponent(name)}`);
     if (r.ok) files.set(`fonts/${name}`, new Uint8Array(await r.arrayBuffer()));
   }
   await embed.addFonts(files);
@@ -167,7 +171,7 @@ export class Desktop {
         // a classic skin's missing bitmaps come from the base skin, a modern skin's lists and
         // frames from Winamp's wasabi base, as in Winamp
         ...(modern
-          ? { wasabi: "/walkit/wasabi.zip" }
+          ? { wasabi: new URL(WASABI, document.baseURI).href }
           : { base: BASE_SKIN.href }),
       });
     } catch (e) {
