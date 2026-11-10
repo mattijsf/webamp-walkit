@@ -33,7 +33,6 @@ jobs:
         run: npx turbo build --filter=webamp-demo
         env:
           NODE_ENV: production
-          DEMO_BASE: /${{ github.event.repository.name }}/
       - uses: actions/upload-pages-artifact@v3
         with:
           path: packages/webamp-demo/dist
