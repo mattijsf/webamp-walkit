@@ -16,6 +16,7 @@ import { getSkinBytes, onSkinBytes, SkinBytes } from "./skinBytes";
 import { PlayerFeed, playerCommand } from "./player";
 import { WindowMirror, WINDOW_OF_CONTAINER } from "./windows";
 import { Box, toBox } from "./dock";
+import { modernFiles } from "./modernFiles";
 
 export type MenuKind =
   | "main"
@@ -52,23 +53,6 @@ const BASE_SKIN = new URL("../../assets/skins/base-2.91.wsz", import.meta.url);
 
 let walkit: Promise<Walkit> | null = null;
 let fonts: Promise<void> | null = null;
-
-// What modern skins need besides themselves, next to the page when it has them: Winamp's
-// wasabi base and the stand-in fonts their text is laid out with. Relative, so the page works
-// under any path.
-const WASABI = "walkit/wasabi.zip";
-
-async function loadFonts(embed: Walkit) {
-  const names: string[] = await fetch("walkit/fonts.json")
-    .then((r) => (r.ok ? r.json() : []))
-    .catch(() => []);
-  const files = new Map<string, Uint8Array>();
-  for (const name of names) {
-    const r = await fetch(`walkit/fonts/${encodeURIComponent(name)}`);
-    if (r.ok) files.set(`fonts/${name}`, new Uint8Array(await r.arrayBuffer()));
-  }
-  await embed.addFonts(files);
-}
 
 /**
  * walkit's classic windows on the page: one canvas each where walkit places it, the pointer,
@@ -163,16 +147,15 @@ export class Desktop {
     const turn = ++this.showing;
     const embed = await walkit!;
     embed.setHandlers(this.handlers);
-    if (modern) await (fonts ??= loadFonts(embed));
+    const files = modern ? await modernFiles() : null;
+    if (files) await (fonts ??= embed.addFonts(files.fonts));
     let skin: Skin;
     try {
       skin = await embed.openSkin(source, {
         name: "webamp",
         // a classic skin's missing bitmaps come from the base skin, a modern skin's lists and
         // frames from Winamp's wasabi base, as in Winamp
-        ...(modern
-          ? { wasabi: new URL(WASABI, document.baseURI).href }
-          : { base: BASE_SKIN.href }),
+        ...(files ? { wasabi: files.wasabi } : { base: BASE_SKIN.href }),
       });
     } catch (e) {
       // a modern skin without the wasabi base to stand on, or a broken archive

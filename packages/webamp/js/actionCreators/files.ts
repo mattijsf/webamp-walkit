@@ -11,6 +11,7 @@ import {
 } from "../fileUtils";
 import skinParser from "../skinParser";
 import { setSkinBytes, walkitEnabled } from "../walkit/skinBytes";
+import { modernFiles } from "../walkit/modernFiles";
 import {
   getTracks,
   getUserTracks,
@@ -140,14 +141,15 @@ export function setSkinFromUrl(url: string): Thunk {
   return async (dispatch) => {
     dispatch({ type: "LOADING" });
     try {
+      // a .wal is a modern skin, which only walkit shows; what it needs comes along
+      const modern =
+        walkitEnabled() &&
+        /\.wal$/i.test(new URL(url, window.location.href).pathname);
+      if (modern) modernFiles();
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error(response.statusText);
       }
-      // a .wal is a modern skin, which only walkit shows
-      const modern =
-        walkitEnabled() &&
-        /\.wal$/i.test(new URL(url, window.location.href).pathname);
       dispatch(setSkinFromBlob(response.blob(), modern));
     } catch (e) {
       console.error(e);
