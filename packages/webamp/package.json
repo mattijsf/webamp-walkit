@@ -110,5 +110,8 @@
   },
   "prettier": {
     "trailingComma": "es5"
+  },
+  "dependencies": {
+    "walkit-web": "workspace:*"
   }
 }

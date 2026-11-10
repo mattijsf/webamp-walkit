@@ -9,6 +9,7 @@ import replace from "@rollup/plugin-replace";
 import postcssOptimizeDataUriPngs from "./postcss-optimize-data-uri-pngs.mjs";
 import atImport from "postcss-import";
 import nodePolyfills from "rollup-plugin-polyfill-node";
+import fs from "node:fs";
 import path from "node:path";
 
 export function getPlugins({ minify, outputFile }) {
@@ -19,6 +20,7 @@ export function getPlugins({ minify, outputFile }) {
       preventAssignment: true,
     }),
     stripInlineSuffix(),
+    importMetaAssets(),
     // https://rollupjs.org/troubleshooting/#warning-treating-module-as-external-dependency
     // TODO: We could offer a version which does not inline React/React-DOM
     nodeResolve({
@@ -92,6 +94,35 @@ function stripInlineSuffix() {
       }
 
       return null; // Return null to let other plugins handle the path if not modified
+    },
+  };
+}
+
+// Files a module finds next to itself with `new URL("./file", import.meta.url)` (walkit's
+// wasm, the base skin): emitted beside the bundle, as Vite does for the demo.
+function importMetaAssets() {
+  const pattern = /new URL\((["'])(\.{1,2}\/[^"']+)\1,\s*import\.meta\.url\)/g;
+  return {
+    name: "import-meta-assets",
+    transform(code, id) {
+      if (!code.includes("import.meta.url")) {
+        return null;
+      }
+      let changed = false;
+      const out = code.replace(pattern, (whole, _quote, relative) => {
+        const file = path.resolve(path.dirname(id), relative);
+        if (!fs.existsSync(file)) {
+          return whole;
+        }
+        const ref = this.emitFile({
+          type: "asset",
+          name: path.basename(file),
+          source: fs.readFileSync(file),
+        });
+        changed = true;
+        return `new URL(import.meta.ROLLUP_FILE_URL_${ref})`;
+      });
+      return changed ? { code: out, map: null } : null;
     },
   };
 }

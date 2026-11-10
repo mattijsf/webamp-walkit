@@ -6,7 +6,7 @@ export default defineConfig({
     outDir: "dist",
     chunkSizeWarningLimit: 2500,
   },
-  assetsInclude: ["**/*.wsz", "**/*.mp3"],
+  assetsInclude: ["**/*.wsz", "**/*.mp3", "**/*.wasm"],
   plugins: [
     // Needed for music-metadata-browser which uses polyfillable node APIs
     // @ts-expect-error Rollup plugin type mismatch with Vite's stricter types

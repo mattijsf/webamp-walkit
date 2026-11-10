@@ -1,0 +1,28 @@
+{
+  "name": "walkit-web",
+  "version": "0.5.15",
+  "description": "walkit in the browser: Winamp classic and modern skins drawn on canvases, for a page that brings a player",
+  "license": "GPL-3.0-or-later",
+  "private": true,
+  "type": "module",
+  "main": "embed.mjs",
+  "types": "embed.d.ts",
+  "exports": {
+    ".": {
+      "types": "./embed.d.ts",
+      "default": "./embed.mjs"
+    },
+    "./walkit.wasm": "./walkit.wasm"
+  },
+  "files": [
+    "embed.mjs",
+    "embed.d.ts",
+    "walkit.mjs",
+    "frame.mjs",
+    "cursor.mjs",
+    "render.mjs",
+    "pictures.mjs",
+    "zip.mjs",
+    "walkit.wasm"
+  ]
+}
