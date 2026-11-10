@@ -10,7 +10,7 @@ export function cropPlaylist(): Thunk {
     if (Selectors.getSelectedTrackObjects(state).length === 0) {
       return;
     }
-    const selectedTrackIds = Selectors.getSelectedTrackIds(state);
+    const selectedTrackIds = Selectors.getSelectedTrackIdsSet(state);
     const {
       playlist: { trackOrder },
     } = state;
