@@ -19,6 +19,8 @@ import MainWindow from "./MainWindow";
 import PlaylistWindow from "./PlaylistWindow";
 import EqualizerWindow from "./EqualizerWindow";
 import Skin from "./Skin";
+import WalkitDesktop from "../walkit/WalkitDesktop";
+import { walkitEnabled } from "../walkit/skinBytes";
 
 import { IMedia } from "../media";
 import { useTypedSelector, useActionCreator } from "../hooks";
@@ -109,8 +111,13 @@ export default function App({
   }, [onMount]);
 
   const renderWindows = useCallback(() => {
+    const walkit = walkitEnabled();
     return Utils.objectMap(genWindowsInfo, (w, id) => {
       if (!w.open) {
+        return null;
+      }
+      // walkit draws every window but Milkdrop's
+      if (walkit && id !== WINDOWS.MILKDROP) {
         return null;
       }
       switch (id) {
@@ -147,10 +154,11 @@ export default function App({
     <StrictMode>
       <Css>{cssText}</Css>
       <div onBlur={handleBlur}>
-        <Skin />
+        {!walkitEnabled() && <Skin />}
         <ContextMenuWrapper
           renderContents={() => <MainContextMenu filePickers={filePickers} />}
         >
+          {walkitEnabled() && <WalkitDesktop analyser={media.getAnalyser()} />}
           <WindowManager
             windows={renderWindows()}
             parentDomNode={parentDomNode}

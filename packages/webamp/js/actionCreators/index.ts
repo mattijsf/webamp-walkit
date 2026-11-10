@@ -2,6 +2,7 @@ import { WINDOWS } from "../constants";
 import { Thunk, Action, Slider } from "../types";
 import * as Selectors from "../selectors";
 import { setFocusedWindow } from "./windows";
+import { setSkinBytes, walkitEnabled } from "../walkit/skinBytes";
 
 export {
   toggleDoubleSizeMode,
@@ -145,8 +146,11 @@ export function focusBand(band: Slider): Action {
   return { type: "SET_BAND_FOCUS", input: "eq", bandFocused: band };
 }
 
-export function loadDefaultSkin(): Action {
-  return { type: "LOAD_DEFAULT_SKIN" };
+export function loadDefaultSkin(): Thunk {
+  return (dispatch) => {
+    dispatch({ type: "LOAD_DEFAULT_SKIN" });
+    if (walkitEnabled()) setSkinBytes(null);
+  };
 }
 
 export function toggleMilkdropDesktop(): Thunk {

@@ -10,6 +10,7 @@ import {
   genMediaTags,
 } from "../fileUtils";
 import skinParser from "../skinParser";
+import { setSkinBytes, walkitEnabled } from "../walkit/skinBytes";
 import {
   getTracks,
   getUserTracks,
@@ -82,6 +83,13 @@ export function setSkinFromBlob(blob: Blob | Promise<Blob>): Thunk {
       return;
     }
     dispatch({ type: "LOADING" });
+    if (walkitEnabled()) {
+      // walkit reads the archive itself; webamp's sprites would go unused
+      const bytes = new Uint8Array(await (await blob).arrayBuffer());
+      setSkinBytes({ bytes });
+      dispatch({ type: "LOADED" });
+      return;
+    }
     let JSZip;
     try {
       JSZip = await requireJSZip();
@@ -92,7 +100,9 @@ export function setSkinFromBlob(blob: Blob | Promise<Blob>): Thunk {
       return;
     }
     try {
-      const skinData = await skinParser(blob, JSZip);
+      const resolved = await blob;
+      setSkinBytes({ bytes: new Uint8Array(await resolved.arrayBuffer()) });
+      const skinData = await skinParser(resolved, JSZip);
       dispatch({
         type: "SET_SKIN_DATA",
         data: {
