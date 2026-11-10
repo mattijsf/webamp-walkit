@@ -158,7 +158,12 @@ export default function App({
         <ContextMenuWrapper
           renderContents={() => <MainContextMenu filePickers={filePickers} />}
         >
-          {walkitEnabled() && <WalkitDesktop analyser={media.getAnalyser()} />}
+          {walkitEnabled() && (
+            <WalkitDesktop
+              analyser={media.getAnalyser()}
+              filePickers={filePickers}
+            />
+          )}
           <WindowManager
             windows={renderWindows()}
             parentDomNode={parentDomNode}

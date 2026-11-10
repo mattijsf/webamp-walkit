@@ -6,22 +6,26 @@ import { useActionCreator } from "../../hooks";
 
 /* eslint-disable no-alert */
 /* TODO: This should really be kitty-corner to the upper right hand corner of the MiscMenu */
-export default function SortContextMenu() {
+export function SortMenu() {
   const reverseList = useActionCreator(Actions.reverseList);
   const randomizeList = useActionCreator(Actions.randomizeList);
   const sortListByTitle = useActionCreator(Actions.sortListByTitle);
   return (
+    <>
+      <Node label="Sort list by title" onClick={sortListByTitle} />
+      <Hr />
+      <Node label="Reverse list" onClick={reverseList} />
+      <Node label="Randomize list" onClick={randomizeList} />
+    </>
+  );
+}
+
+export default function SortContextMenu() {
+  return (
     <ContextMenuTarget
       style={{ width: "100%", height: "100%" }}
       top
-      renderMenu={() => (
-        <>
-          <Node label="Sort list by title" onClick={sortListByTitle} />
-          <Hr />
-          <Node label="Reverse list" onClick={reverseList} />
-          <Node label="Randomize list" onClick={randomizeList} />
-        </>
-      )}
+      renderMenu={() => <SortMenu />}
     >
       <div />
     </ContextMenuTarget>

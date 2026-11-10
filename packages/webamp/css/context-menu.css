@@ -86,3 +86,10 @@
 #webamp-context-menu .context-menu li:hover > ul {
   display: block;
 }
+
+#webamp-context-menu .context-menu ul.flip {
+  left: auto;
+  right: 100%;
+  margin-left: 0;
+  margin-right: -3px;
+}

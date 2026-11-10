@@ -17,6 +17,13 @@ import { PlayerFeed, playerCommand } from "./player";
 import { WindowMirror, WINDOW_OF_CONTAINER } from "./windows";
 import { Box, toBox } from "./dock";
 
+export type MenuKind = "main" | "options" | "presets" | "sort" | "misc";
+// where a menu opens on the page: its top left corner
+export type MenuPlace = {
+  kind: MenuKind;
+  x: number;
+  y: number;
+};
 type From = ActionFrom | null;
 
 // a mouse wheel's notch, in pixels of delta (three lines); a trackpad's add up to notches
@@ -64,7 +71,8 @@ export class Desktop {
   constructor(
     private root: HTMLElement,
     private store: Store<AppState>,
-    private analyser: AnalyserNode
+    private analyser: AnalyserNode,
+    private openMenu: (menu: MenuPlace) => void
   ) {
     walkit ??= loadWalkit();
     const show = (s: SkinBytes) =>
@@ -386,6 +394,24 @@ export class Desktop {
     }
   }
 
+  // webamp closes its menus on the next click, so one opened by a press waits for it to pass;
+  // a menu opens under its button
+  private menuAt(kind: MenuKind, from: From) {
+    const r = this.root.getBoundingClientRect();
+    const [x, y, , h] = from?.rect ?? [0, 0, 0, 0];
+    const open = () =>
+      setTimeout(() =>
+        this.openMenu({
+          kind,
+          x: r.left + window.scrollX + x,
+          y: r.top + window.scrollY + y + h,
+        })
+      );
+    if (this.press.down)
+      window.addEventListener("pointerup", open, { once: true });
+    else open();
+  }
+
   private action(action: string, param: string, from: From) {
     const { dispatch } = this;
     const state = this.store.getState();
@@ -397,6 +423,10 @@ export class Desktop {
         return dispatch(Actions.minimize());
       case "DOUBLESIZE":
         return dispatch(Actions.toggleDoubleSizeMode());
+      case "MENU":
+        return this.menuAt(param === "wa5:options" ? "options" : "main", from);
+      case "EQ_PRESETS":
+        return this.menuAt("presets", from);
       case "TOGGLE":
         return param === "avs"
           ? dispatch(Actions.toggleWindow("milkdrop"))
@@ -410,11 +440,11 @@ export class Desktop {
             : { type: "CLICKED_TRACK", index: Number(param) }
         );
       case "PLAYLIST":
-        return this.playlistPick(param, count);
+        return this.playlistPick(param, count, from);
     }
   }
 
-  private playlistPick(pick: string, count: number) {
+  private playlistPick(pick: string, count: number, from: From) {
     const { dispatch } = this;
     switch (pick) {
       case "add_file":
@@ -436,6 +466,10 @@ export class Desktop {
         return dispatch(Actions.selectZero());
       case "select_invert":
         return dispatch(Actions.invertSelection());
+      case "sort":
+        return this.menuAt("sort", from);
+      case "misc_options":
+        return this.menuAt("misc", from);
       case "list_load":
         return dispatch(Actions.addFilesFromList());
       case "list_save":

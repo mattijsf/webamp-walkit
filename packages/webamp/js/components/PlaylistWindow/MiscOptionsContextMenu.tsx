@@ -3,19 +3,19 @@ import ContextMenuTarget from "../ContextMenuTarget";
 import * as Actions from "../../actionCreators";
 import { useActionCreator } from "../../hooks";
 
-const MiscOptionsContextMenu = () => {
+export function MiscOptionsMenu() {
   const downloadHtmlPlaylist = useActionCreator(Actions.downloadHtmlPlaylist);
-  return (
-    <ContextMenuTarget
-      style={{ width: "100%", height: "100%" }}
-      top
-      renderMenu={() => (
-        <Node onClick={downloadHtmlPlaylist} label="Generate HTML playlist" />
-      )}
-    >
-      <div />
-    </ContextMenuTarget>
-  );
-};
+  return <Node onClick={downloadHtmlPlaylist} label="Generate HTML playlist" />;
+}
+
+const MiscOptionsContextMenu = () => (
+  <ContextMenuTarget
+    style={{ width: "100%", height: "100%" }}
+    top
+    renderMenu={() => <MiscOptionsMenu />}
+  >
+    <div />
+  </ContextMenuTarget>
+);
 
 export default MiscOptionsContextMenu;
