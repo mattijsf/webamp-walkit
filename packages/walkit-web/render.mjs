@@ -79,6 +79,17 @@ function colorOf(rgb) {
   return `#${(rgb & 0xffffff).toString(16).padStart(6, "0")}`;
 }
 
+/**
+ * The 2D context of canvas `c`, kept in memory rather than on the graphics card. A frame here
+ * is many small pictures drawn into each window and blended with its shape, which Firefox's
+ * graphics-card canvas falls far behind on (a dragged modern skin shows a few frames a
+ * second); in memory every browser keeps up. The first context asked of a canvas is the one it
+ * keeps, so walkit asks through this before anything else draws on it.
+ */
+export function context2d(c) {
+  return c.getContext("2d", { willReadFrequently: true });
+}
+
 /** A canvas of `w` x `h` device pixels. */
 function surface(w, h) {
   if (typeof OffscreenCanvas !== "undefined") return new OffscreenCanvas(Math.max(1, w), Math.max(1, h));
@@ -137,7 +148,7 @@ function canvasOf(w, h, argb, hard = false) {
 function fillCanvas(c, argb, hard = false) {
   const w = c.width;
   const h = c.height;
-  const ctx = c.getContext("2d");
+  const ctx = context2d(c);
   // a canvas filled again and again keeps its pixel buffer
   const img = c.pixelBuffer ?? ctx.createImageData(w, h);
   c.pixelBuffer = img;
@@ -295,7 +306,7 @@ export class Renderer {
 
   /** One window's commands into `layer`, a canvas of its size at `scale`. */
   drawWindow(layer, cmds, w, h, scale, part = null) {
-    const ctx = layer.getContext("2d");
+    const ctx = context2d(layer);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalCompositeOperation = "source-over";
     ctx.globalAlpha = 1;
@@ -435,7 +446,7 @@ export class Renderer {
     if (kept && kept.key === key) return kept.mask;
     const m = surface(Math.ceil(w * scale), Math.ceil(h * scale));
     this.masks.set(region, { key, mask: m });
-    const ctx = m.getContext("2d");
+    const ctx = context2d(m);
     ctx.scale(scale, scale);
     ctx.imageSmoothingEnabled = false;
     this.region(ctx, region, false, w, h, scale);
@@ -478,7 +489,7 @@ export class Renderer {
   /** Runs `body` on a fresh layer of the window's size and merges it into `ctx` with `op`. */
   blended(ctx, op, w, h, scale, body) {
     const l = surface(Math.ceil(w * scale), Math.ceil(h * scale));
-    const lc = l.getContext("2d");
+    const lc = context2d(l);
     lc.scale(scale, scale);
     lc.imageSmoothingEnabled = false;
     body(lc);
