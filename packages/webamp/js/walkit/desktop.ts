@@ -17,6 +17,7 @@ import { PlayerFeed, playerCommand } from "./player";
 import { WindowMirror, WINDOW_OF_CONTAINER } from "./windows";
 import { Box, Hang, toBox } from "./dock";
 import { modernFiles } from "./modernFiles";
+import { TouchPredictor } from "./touchPredictor";
 
 export type MenuKind =
   | "main"
@@ -74,6 +75,7 @@ export class Desktop {
   private canvases = new Map<number, HTMLCanvasElement>();
   private keys = new Map<number, WindowId>();
   private press = { seq: 0, down: false };
+  private touch = new TouchPredictor();
   private frame = 0;
   private timer = 0;
   private alive = true;
@@ -281,6 +283,11 @@ export class Desktop {
     const playing = Selectors.getMediaIsPlaying(state);
     const now = performance.now();
     this.feed!.hear(playing, now);
+    const ahead = this.press.down ? this.touch.predict(now) : null;
+    if (ahead) {
+      skin.rt.pointerMove(...ahead);
+      skin.invalidate();
+    }
     const changed = skin.tick(now);
     const busy = playing || this.press.down || stored;
     if (!stored && !changed && !this.input) return busy;
@@ -413,13 +420,18 @@ export class Desktop {
     this.skin?.rt.setTouch(e.pointerType !== "mouse");
     this.press.seq++;
     this.press.down = true;
-    this.withSkin((rt) => rt.pointerDown(...this.point(e), this.press.seq));
+    const [x, y] = this.point(e);
+    // the mouse pointer is visible, so don't run ahead of it
+    if (e.pointerType === "mouse") this.touch.stop();
+    else this.touch.start(x, y, e.timeStamp, performance.now());
+    this.withSkin((rt) => rt.pointerDown(x, y, this.press.seq));
   }
 
   private pointerMove(c: HTMLCanvasElement, e: PointerEvent) {
     if (!this.skin) return;
     const [x, y] = this.point(e);
     if (this.press.down) {
+      this.touch.move(x, y, e.timeStamp, performance.now());
       this.withSkin((rt) => rt.pointerMove(x, y));
       return;
     }
@@ -429,6 +441,7 @@ export class Desktop {
   private pointerUp(e: PointerEvent) {
     if (!this.press.down) return;
     this.press.down = false;
+    this.touch.stop();
     this.withSkin((rt) => rt.pointerUp(...this.point(e)));
   }
 
